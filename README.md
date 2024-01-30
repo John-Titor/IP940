@@ -7,6 +7,8 @@ See subdirectory READMEs for more information about the various artifacts.
 
 # Perceptics IP940 processor module hardware
 
+![picture of the CPU board showing component placement and markings](/hardware/cpu_top.jpg)
+
 This is a mezzanine board originally mounted on a 6U VME motherboard. A quantity
 were obtained as surplus via eBay with ROMs marked "Vistakon". The ROM was
 disassembled and the hardware reverse-engineered.
