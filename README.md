@@ -38,7 +38,7 @@ ROMs, allowing in-system programming of the ROMs. This is not possible with the
 
 The four LEDs are marked on the VME motherboard's front panel as (left to right).
 
-`040BUS`, `TIP`, `HALT`, `RESET`
+`040BUS`  `TIP`  `HALT`  `RESET`
 
 The `040BUS` LED is driven by a signal that is always low when the 040 is running,
 and so will always be lit during normal operation. The `TIP` LED is driven by the
@@ -54,18 +54,22 @@ the reset pushbutton, or pulling P3D.13 low.
 
 ### W1 - ROM pin 1 select
 
-1-2: `A21`
-2-3: `VCC`
-2-4: `A20`   (only on `P0`/`R1` boards)
+position | connection | notes
+:-------:|:----------:|-------
+1-2      | `A21`
+2-3      | `VCC`
+2-4      | `A20`      | only on `P0`/`R1` boards
 
 Default for 27CF040: 2-3
 Setting for 39SF040: 2-4
 
 ### W2 - ROM pin 31 select
 
-1-2: `A20`
-2-3: `VCC`
-2-4: `R/#W`   (only on `P0`/`R1` boards)
+position | connection | notes
+:-------:|:----------:|-------
+1-2      | `A20`
+2-3      | `VCC`
+2-4      | `R/#W`     | only on `P0`/`R1` boards
 
 Default for 27CF040: 1-2
 Setting for 39SF040: 2-3 for read-only, 2-4 for writable
@@ -106,17 +110,21 @@ image memory size check looks at 0x02b8_0000, but the image memory test code ass
 memory at 0x00b0_0000.
 
 ### Onboard
-
+```
    EPROM: 0000 0000..007F FFFF      (8 MEGS)
     DRAM: 0100 0000..017F FFFF      (8 MEGS) <- possibly 12?
     MEMC: 0400 0000..04FF FFFF      (old boards only, low address bits are data)
+```
 
 ### On VME motherboard, with chip selects from module
 
+```
    QUART: 0210 0000..021F FFFF      `#BUSCE0`/`#BUSTA0`
+```
 
 ### On VME motherboard, historical interest only
 
+```
    IMAGE: 0?B0 0000..02BF FFFF      (may only be 512K)
 940 REGS: 0200 0000..0200 000C      (in msbyte of lword)
    BBRAM: 0220 0000..0220 7FC0      (in lsbyte of lword)
@@ -127,6 +135,7 @@ VSC REGS: 0280 0000..028F FFFF
    VME16: 4000 0000..4000 FFFF
    VME24: 4100 0000..41FF FFFF
    VME32: 8000 0000..FFFF FFFF
+```
 
 ### DRAM controller (MEMC)
 
@@ -143,6 +152,7 @@ immediately written to. Assuming a 150ns ROM read cycle this would be ~250µs.
 Decoded for the KS84C31, assuming a full wiring of `CASn`/`RASn` to the address bus, 0x041b_d190 is
 approximately:
 
+```
                       EE
                       CC
                       AA
@@ -166,7 +176,7 @@ BBRRRRRRRRRRCCCCCCCCCCSS
   +----------------------> MBZ
  +-----------------------> address is latched
 +------------------------> mode 0 (synchronous) operation
-
+```
 ## Interrupts
 
 There is no interrupt decoding on the board; `IPL0/1/2` are routed directly to the connector.
@@ -181,16 +191,16 @@ P3 is a 4x32 connector accepting standard 0.25" square pins. See the schematic f
 
 For the board to run standalone, the following signal states are required.
 
-| Signal      | Pin  |State | Notes
-+-------------+------+------+-----------
-| `#BG`       | D.5  | low  | Bus Grant from (non-existent) arbiter.
-| `#BB`       | D.4  | high | Bus Busy from (non-existent) master peripheral / arbiter.
-| `#CDIS`     | B.26 | high | Cache disable input.
-| `#MDIS`     | B.27 | high | MMU disable input.
-| `#040BUS`   | B.1  | low  | Custom arbitration signal.
-| `#VME_PAS`  | B.8  | high | Unused VME-related signal.
-| `#VME_PBERR`| B.20 | high | Unused VME-related signal.
-| `IPL0`      | D.26 | high | Needs a pull-up.
-| `IPL1`      | D.27 | high | Needs a pull-up.
-| `IPL2`      | D.28 | high | Needs a pull-up.
+ Signal      | Pin  |State | Notes
+-------------|------|------|-----------
+ `#BG`       | D.5  | low  | Bus Grant from (non-existent) arbiter.
+ `#BB`       | D.4  | high | Bus Busy from (non-existent) master peripheral / arbiter.
+ `#CDIS`     | B.26 | high | Cache disable input.
+ `#MDIS`     | B.27 | high | MMU disable input.
+ `#040BUS`   | B.1  | low  | Custom arbitration signal.
+ `#VME_PAS`  | B.8  | high | Unused VME-related signal.
+ `#VME_PBERR`| B.20 | high | Unused VME-related signal.
+ `IPL0`      | D.26 | high | Needs a pull-up.
+ `IPL1`      | D.27 | high | Needs a pull-up.
+ `IPL2`      | D.28 | high | Needs a pull-up.
 
