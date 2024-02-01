@@ -66,13 +66,23 @@ start:
     movec   %d0,%itt1
 
 //
+// Configure the DRAM controller on 8M boards.
+//
+    movel   0x41bd190,%d0       // load DRAM config
+    movel   #1665,%d0           // delay loop
+1:
+    dbf     %d0,1b
+
+//
 // Serial init for QUART on the VME baseboard.
 //
     move.b  #0x10,QUART_CRA     // select mode register 1
     move.b  #0x13,QUART_MRA     // MR1: no parity, 8b
     move.b  #0x07,QUART_MRA     // MR2: 1 stop bit
     move.b  #0x70,QUART_ACR1    // select baud rate set and timer config
-    move.b  #0xbb,QUART_CSRA    // 9600bps
+    move.b  #0x80,QUART_CRA     // set RX baud rate 'extend' bit
+    move.b  #0xa0,QUART_CRA     // set TX baud rate 'extend' bit
+    move.b  #0x88,QUART_CSRA    // 115.2kbps
     move.b  #0x05,QUART_CRA     // enable rx/tx
 
     mputs   signon
