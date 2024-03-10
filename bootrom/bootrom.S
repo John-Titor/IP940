@@ -1,5 +1,8 @@
 //
-// Lightweight bootrom for IP940
+// Lightweight bootrom for IP940.
+//
+// Flashed into the first sector of the ROMs. Supports booting a
+// program flashed into sectors 1.. or uploaded to DRAM as S-records.
 //
 
 #include "defs.h"
@@ -7,12 +10,9 @@
 //
 // Vector table
 //
-// Just enough to cover things we might stumble on getting
-// a payload up and running.
-//
-    .org    0x0
     .text
 
+    .org    0x0
     dc.l    DRAM_END-4          // top of RAM
     dc.l    start               // entrypoint
     dc.l    exception           // access fault
@@ -56,7 +56,7 @@ start:
     pflusha                     // invalidate tlb
     movec   %d0,%srp            // reset pagetable root pointers
     movec   %d0,%urp
-    move.l  #0x0001c020,%d0     // DTT0, 0-0x02000000 cacheable, copy-back
+    move.l  #0x0001c020,%d0     // DTT0, 0-0x02000000 cacheable, copy-back (RAM/ROM)
     movec   %d0,%dtt0
     move.l  #0x00ffc060,%d0     // DTT1, default uncachable
     movec   %d0,%dtt1
@@ -64,6 +64,8 @@ start:
     movec   %d0,%itt0
     clr.l   %d0                 // disable ITT1
     movec   %d0,%itt1
+//    move.l  #0x8000,%d0         // instruction cache on
+//    movec   %d0,%cacr
 
 //
 // Configure the DRAM controller on 8M boards.
@@ -74,17 +76,9 @@ start:
     dbf     %d0,1b
 
 //
-// Serial init for QUART on the VME baseboard.
+// Init the console
 //
-    move.b  #0x10,QUART_CRA     // select mode register 1
-    move.b  #0x13,QUART_MRA     // MR1: no parity, 8b
-    move.b  #0x07,QUART_MRA     // MR2: 1 stop bit
-    move.b  #0x70,QUART_ACR1    // select baud rate set and timer config
-    move.b  #0x80,QUART_CRA     // set RX baud rate 'extend' bit
-    move.b  #0xa0,QUART_CRA     // set TX baud rate 'extend' bit
-    move.b  #0x88,QUART_CSRA    // 115.2kbps
-    move.b  #0x05,QUART_CRA     // enable rx/tx
-
+    bsr     uart_init
     mputs   signon
 
 //
@@ -102,7 +96,10 @@ srec_loop:
     cmp.b   #'S',%d0            // 'S' for an S-record
     bne     srec_loop
 
+1:
     bsr     getc                // get s-record type
+    cmp.b   #'S',%d0
+    beq     1b                  // handle duplicate 'S'
     cmp.b   #'3',%d0
     beq     srec_3              // handle S3
     cmp.b   #'7',%d0
@@ -122,7 +119,7 @@ srec_loop:
 // boot the application in flash at 0x4000
 //
 boot_app:
-    lea     0x4000,%a1          // base of app in flash
+    move.l  #APP_BASE,%a1       // base of app in flash
     move.l  %a1@,%d0            // app stack pointer
     cmp.l   #DRAM_BASE,%d0      // range-check against DRAM
     blt     2f
@@ -182,7 +179,7 @@ srec_3:
     dbf     %d6,1b              // go get another byte
 
     bsr     srec_check_sum      // get the checksum byte and verify
-    move.b  #'.',QUART_THRA     // emit progress marker
+    mputs   srec_progress       // emit progress marker
     bra     srec_loop           // ... go get another record
 
 //
@@ -233,7 +230,7 @@ srec_check_sum:
 1:
     fatal8  %d7,err_srec_sum
 
-signon:         .asciz "\r\nIP940 bootstrap rel 1\r\n 'X' to execute code at 0x4000 or send S-records..."
+signon:         .asciz "\r\n\r\nIP940 bootstrap rel 2\r\n 'X' to execute code at 0x4000 or send S-records..."
 msg_newline:    .asciz "\r\n"
 err_exception1: .asciz "Unhandled exception "
 err_exception2: .asciz " @ "
@@ -241,6 +238,7 @@ app_go1:        .asciz "\r\nStarting app with stack "
 app_go2:        .asciz " entrypoint "
 err_app_stack:  .asciz " app stack invalid"
 err_app_entry:  .asciz " app entrypoint invalid"
+srec_progress:  .asciz "."
 srec_go:        .asciz "\r\nUpload complete, jumping to loaded code...\r\n"
 err_srec_sum:   .asciz " S-record checksum mismatch\r\n"
 err_srec_unsup: .asciz " invalid S-record type"

@@ -1,42 +1,50 @@
 //
-// Definitions for IP940 test programs
+// Definitions for IP940 boot ROM and support tools.
 //
 
-    .equ DRAM_BASE,     0x01000000
-    .equ DRAM_END,      0x01800000
-    .equ APP_BASE,      0x00004000
-    .equ APP_END,       0x00200000
-    .equ QUART_BASE,    0x02100000
-#define QUART_REG(_x)   (QUART_BASE + (_x << 2) +3)
-    .equ QUART_MRA,     QUART_BASE+(0x00<<2)+3
-    .equ QUART_SRA,     QUART_BASE+(0x01<<2)+3
-    .equ QUART_CSRA,    QUART_BASE+(0x01<<2)+3
-    .equ QUART_MISR1,   QUART_BASE+(0x02<<2)+3
-    .equ QUART_CRA,     QUART_BASE+(0x02<<2)+3
-    .equ QUART_RHRA,    QUART_BASE+(0x03<<2)+3
-    .equ QUART_THRA,    QUART_BASE+(0x03<<2)+3
-    .equ QUART_IPCR1,   QUART_BASE+(0x04<<2)+3
-    .equ QUART_ACR1,    QUART_BASE+(0x04<<2)+3
-    .equ QUART_ISR1,    QUART_BASE+(0x05<<2)+3
-    .equ QUART_IMR1,    QUART_BASE+(0x05<<2)+3
-    .equ QUART_CTU1,    QUART_BASE+(0x06<<2)+3
-    .equ QUART_CTL1,    QUART_BASE+(0x07<<2)+3
-    .equ QUART_MRB,     QUART_BASE+(0x08<<2)+3
-    .equ QUART_SRB,     QUART_BASE+(0x09<<2)+3
-    .equ QUART_CSRB,    QUART_BASE+(0x09<<2)+3
-    .equ QUART_CRB,     QUART_BASE+(0x0a<<2)+3
-    .equ QUART_RHRB,    QUART_BASE+(0x0b<<2)+3
-    .equ QUART_THRB,    QUART_BASE+(0x0b<<2)+3
-    .equ QUART_IVR1,    QUART_BASE+(0x0c<<2)+3
-    .equ QUART_IP1,     QUART_BASE+(0x0d<<2)+3
-    .equ QUART_OPCR1,   QUART_BASE+(0x0d<<2)+3
-    .equ QUART_SCC1,    QUART_BASE+(0x0e<<2)+3
-    .equ QUART_SOPBC1,  QUART_BASE+(0x0e<<2)+3
-    .equ QUART_STC1,    QUART_BASE+(0x0f<<2)+3
-    .equ QUART_COPBC1,  QUART_BASE+(0x0f<<2)+3
+// Memory
+    .equ APP_BASE,          0x00004000  // start of non-bootloader ROM space
+    .equ APP_END,           0x00200000  // end of ROM
+    .equ DRAM_BASE,         0x01000000
+    .equ DRAM_END,          0x01800000  // 8M board compatibility
+
+// Registers
+    .equ TIMER_STOP,        0x0210003b  // any access stops CPLD timers
+    .equ TIMER_START,       0x0210003f  // any access starts CPLD timers
+    .equ CPLD_REV_REG,      0x021000ff  // initial CPLD revision 1
+    .equ EXPANSION_BASE,    0x02130000  // base address for expansion decode
+
+// CF interface on baseboard
+    .equ CF_BASE,           0x02100040
+    .equ CF_DATA,           CF_BASE+0x02        // 16b data
+    .equ CF_DATA8,          CF_BASE+0x03        // 8b data
+    .equ CF_ERROR,          CF_BASE+(0x01<<2)+3
+    .equ CF_FEATURE,        CF_BASE+(0x01<<2)+3
+    .equ CF_SECTOR_COUNT,   CF_BASE+(0x02<<2)+3
+    .equ CF_LBA_0,          CF_BASE+(0x03<<2)+3
+    .equ CF_LBA_1,          CF_BASE+(0x04<<2)+3
+    .equ CF_LBA_2,          CF_BASE+(0x05<<2)+3
+    .equ CF_LBA_3,          CF_BASE+(0x06<<2)+3
+    .equ CF_STATUS,         CF_BASE+(0x07<<2)+3
+    .equ CF_COMMAND,        CF_BASE+(0x07<<2)+3
+
+// OX16C954 quad UART on baseboard
+    .equ QUART_BASE,        0x02110000
+    .equ QUART_THR,         QUART_BASE+(0x00<<2)+3
+    .equ QUART_RHR,         QUART_BASE+(0x00<<2)+3
+    .equ QUART_DLL,         QUART_BASE+(0x00<<2)+3
+    .equ QUART_DLM,         QUART_BASE+(0x01<<2)+3
+    .equ QUART_FCR,         QUART_BASE+(0x02<<2)+3
+    .equ QUART_EFR,         QUART_BASE+(0x02<<2)+3
+    .equ QUART_LCR,         QUART_BASE+(0x03<<2)+3
+    .equ QUART_LSR,         QUART_BASE+(0x05<<2)+3
+    .equ QUART_ICR,         QUART_BASE+(0x05<<2)+3
+    .equ QUART_SPR,         QUART_BASE+(0x07<<2)+3
 
 // functions in utils.S
+    .globl  uart_init
     .globl  getc
+    .globl  putc
     .globl  getb
     .globl  get_addr
     .globl  puts

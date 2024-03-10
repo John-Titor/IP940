@@ -1,5 +1,5 @@
 //
-// Utility functions for IP940 bootrom.
+// Utility functions for IP940 bootrom and support tools.
 //
 
 #include "defs.h"
@@ -7,13 +7,32 @@
     .text
 	.align	2
 
+// Init the OX16C954 quad UART channel A
+// 115200n81, 16950 mode
+uart_init:
+    move.b  #1,QUART_FCR        // enable FIFO, 550/extended mode
+    move.b  #0xbf,QUART_LCR     // enable extended registers, divisor latch
+    move.b  #0x50,QUART_EFR     // enable 950 mode, auto RTS
+    move.b  #0x80,QUART_LCR     // enable divisor latch
+    move.b  #0,QUART_DLM
+    move.b  #13,QUART_DLL       // divisor /13 -> 115200
+    move.b  #0x03,QUART_LCR     // clear divisor latch, set n81
+    move.b  #1,QUART_SPR        // select CPR
+    move.b  #11,QUART_ICR       // prescale 1.375
+    rts
+
 // get a character from the UART, return in d0.b
 getc:
-1:
-    btst.b  #0,QUART_SRA
-    beq     1b
-    move.b  QUART_RHRA,%d0
-//    move.b  %d0,QUART_THRA
+    btst.b  #0,QUART_LSR
+    beq     getc
+    move.b  QUART_RHR,%d0
+    rts
+
+// write the character in d0.b to the UART
+putc:
+    btst.b  #5,QUART_LSR
+    beq     putc
+    move.b  %d0,QUART_THR
     rts
 
 // get an address as eight hex digits, returns in d0, trashes d1
@@ -28,6 +47,7 @@ get_addr:
     rts
 
 // get a byte as two hex digits, return in d0.b, trashes d1
+// XXX could keep first half in higher part of d0 to avoid touching d1
 getb:
     clr.l   %d1                 // scratch
     bsr     getx                // get MS hex nibble
@@ -60,15 +80,13 @@ getx:
 
 // print the 0-terminated string in a0
 puts:
-1:
     tst.b   %a0@
-    bne     2f
+    bne     1f
     rts
-2:
-    btst.b  #2,QUART_SRA
-    beq     2b
-    move.b  %a0@+,QUART_THRA
-    bra     1b
+1:
+    move.b  %a0@+,%d0
+    bsr     putc
+    bra     puts
 
 // print hex number in d0, trashes d1
 putx32:
@@ -93,9 +111,9 @@ putx:
 1:
     add.b   #55,%d1
 2:
-    btst.b  #2,QUART_SRA
-    beq     2b
-    move.b  %d1,QUART_THRA
+    exg     %d0,%d1
+    bsr     putc
+    exg     %d0,%d1
     rts
 
 // fatal error handler, message in a1

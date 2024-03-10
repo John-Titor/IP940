@@ -1,5 +1,11 @@
 //
-// ROM flasher
+// Flasher for IP940 with 39SF040 flash ROMs.
+//
+// Uploaded to the bootrom, will in turn accept an S-record upload
+// and either flash the bootrom -or- the application space.
+//
+// Assumes the UART, DRAM, etc. were set up by the bootrom and does
+// not re-init them.
 //
 
 #include "defs.h"
@@ -18,24 +24,30 @@
     .equ    VENDOR_SST,     0xbfbfbfbf
     .equ    DEVICE_39F040,  0xb7b7b7b7
 
+    .equ    BLANK,          0xffffffff
     .equ    FLASH_SIZE,     0x00200000
     .equ    SECTOR_SIZE,    0x4000
 
 //
-// Entrypoint
+// Entrypoint.
 //
     .text
     .org    0x0
     .globl  start
 start:
+    bsr     uart_init
     mputs   msg_start
 
-    bsr     check_flash_id
-    bsr     get_srecords        // sets buffer end pointer in a5
-    bsr     erase_flash
-    bsr     program_flash
+    clr.l   %d0                 // caches off
+    movec   %d0,%cacr
 
-    mputs   msg_reset
+    // flash programming workflow
+    bsr     check_flash_id      // verify suitable flash ROMs installed
+    bsr     get_srecords        // accepts upload, buffer end pointer in a5
+    bsr     erase_flash         // erase flash as required
+    bsr     program_flash       // write upload to flash
+
+    mputs   msg_reset           // XXX check CPLD revision for reset-capability
 1:
     bra     1b
 
@@ -61,7 +73,11 @@ check_flash_id:
     rts
 
 //
-// receive s-records from the serial port, copy into DRAM buffer
+// Receive s-records from the serial port, copy into DRAM buffer.
+//
+// At this point we are happy to accept S-records addressing any
+// part of the flash; later we will check that they don't cross
+// the bootrom / app boundary.
 //
 get_srecords:
     lea     FLASH_SIZE,%a4      // lowest buffer address seen
@@ -69,8 +85,8 @@ get_srecords:
 
     lea     flash_buf,%a0       // zero the flash buffer
     move.l  %a0,%a1
-    add.l   #FLASH_SIZE,%a1
-    clr.l   %d0
+    add.l   #FLASH_SIZE,%a1     // end of buffer
+    move.l  #BLANK,%d0          // don't program un-initialized memory
 1:
     move.l  %d0,%a0@+
     cmp.l   %a1,%a0
@@ -113,8 +129,6 @@ srec_3:
     move.l  %d0,%d6             // ... and save for later
 
     bsr     get_addr            // get destination address
-    cmp.l   #FLASH_SIZE,%d0     // range check against flash area (XXX should add length...)
-    bgt     srec_bad_addr       // ... bad
     move.l  %d0,%d5             // ... save for later
 
     cmp.l   %d0,%a4             // compare with previous lowest address
@@ -123,6 +137,8 @@ srec_3:
 
 1:
     add.l   %d6,%d0             // get end of record data
+    cmp.l   #FLASH_SIZE,%d0     // range check end against flash area
+    bgt     srec_bad_addr       // ... bad
     cmp.l   %d0,%a5             // compare with previous highest address
     bgt     2f                  // ... not higher
     move.l  %d0,%a5             // ... update
@@ -137,8 +153,7 @@ srec_3:
     dbf     %d6,3b              // go get another byte
 
     bsr     srec_check_sum      // get the checksum byte and verify
-
-    move.b  #'.',QUART_THRA     // emit progress marker
+    mputs   srec_progress       // emit progress marker
     bra     srec_loop           // ... go get another record
 
 //
@@ -154,16 +169,19 @@ srec_7:
     cmp.b   #5,%d0              // must be 5
     bne     srec_bad_len        // ... but it's not
 
-    bsr     get_addr            // get entrypoint address
-    cmp.l   #FLASH_SIZE,%d0
-    bgt     srec_bad_addr
+    bsr     get_addr            // get entrypoint address for sanity check
+    cmp.l   %a5,%d0             // ... inside program?
+    bge     srec_bad_addr       // past end, no
+    cmp.l   %a4,%d0
+    blt     srec_bad_addr       // before start, no
     btst    #0,%d0              // instructions must be 2-aligned
     bne     srec_bad_addr
+
     bsr     srec_check_sum      // get the checksum byte and verify
 
     cmp.l   #0,%a4              // flashing the loader?
     bne     1f                  // ... no, perhaps app
-    cmp.l   #FLASH_SIZE,%a5     // must fit within the first sector
+    cmp.l   #SECTOR_SIZE,%a5    // must fit within the first sector
     ble     2f
     fatal32 %a5,err_loader_len  // ... not
 1:
@@ -231,7 +249,7 @@ erase_flash:
     move.w  #6666,%d3           // 1ms / 150µs access time = 6666 read cycles
 3:
     move.l  %a1@,%d0
-    cmp.l   #0xffffffff,%d0     // erase complete (data matches expected value)?
+    cmp.l   #BLANK,%d0          // erase complete (data matches expected value)?
     beq     4f                  // ... yes, done with this sector
     dbf     %d3,3b
     dbf     %d2,2b
@@ -264,12 +282,14 @@ program_flash:
     lea     flash_buf,%a2
     add.l   %a1,%a2             // ... and the top of the DRAM buffer
 1:
+    move.l  %a2@,%d2            // get word to program
+    cmp.l   #BLANK,%d2          // uninitialized?
+    beq     3f                  // ... yes, skip programming this word
+
     move.l  #UNLOCK_CODE_1,UNLOCK_ADDR_1
     move.l  #UNLOCK_CODE_2,UNLOCK_ADDR_2
     move.l  #CMD_PROGRAM,CMD_ADDR // configure flash for byte program
-    move.l  %a2@,%d2            // get word to program
     move.l  %d2,%a1@            // write word to flash
-
     move.w  #200,%d3            // 20µs worst-case program time / 150ns access time = 133 read cycles
 2:
     cmp.l   %a1@,%d2            // program complete (data matches expected value)?
@@ -278,22 +298,23 @@ program_flash:
 
     fatal32 %a1,err_program     // program timed out
 3:
-    subq.l  #4,%a1
-    subq.l  #4,%a2
-    cmp.l   %a4,%a1
-    bge     1b
+    subq.l  #4,%a1              // decrement source
+    subq.l  #4,%a2              // and destination
+    cmp.l   %a4,%a1             // done?
+    bge     1b                  // ... no
 
     mputs   msg_done
     rts
 
 
-msg_start:      .asciz "\nIP940 ROM flash tool rel 1\r\n"
+msg_start:      .asciz "\r\nIP940 ROM flash tool rel 1\r\n"
 msg_srec:       .asciz "Ready for S-records..."
-msg_erase:      .asciz "Erasing sectors...\r\n"
+msg_erase:      .asciz "Erasing sectors..."
 msg_program:    .asciz "Writing..."
 msg_verify:     .asciz "Verifying..."
 msg_done:       .asciz "done\r\n"
 msg_reset:      .asciz "Reset to run uploaded program.\r\n"
+srec_progress:  .asciz "."
 err_vendor:     .asciz " flash vendor not supported"
 err_device:     .asciz " flash device not supported"
 err_srec_unsup: .asciz " invalid S-record type"

@@ -15,52 +15,57 @@ CFLAGS			 = -m68040 \
 
 INCLUDES		 = defs.h
 
-LOADER_SRCS		 = loader.S utils.S
-LOADER_ELF		 = $(BUILDDIR)/loader.elf
-LOADER_SREC		 = $(BUILDDIR)/loader.s19
-LOADER_BIN		 = $(BUILDDIR)/loader.bin
-LOADER_PARTS		 = $(BUILDDIR)/byte0.bin \
-			   $(BUILDDIR)/byte1.bin \
-			   $(BUILDDIR)/byte2.bin \
-			   $(BUILDDIR)/byte3.bin
-
-FLASHER_SRCS		 = flasher.S utils.S
-FLASHER_SREC		 = $(BUILDDIR)/flasher.s19
+BOOTROM_SRCS		 = bootrom.S utils.S
+BOOTROM_ELF		 = $(BUILDDIR)/bootrom.elf
+BOOTROM_SREC		 = $(BUILDDIR)/bootrom.s19
+BOOTROM_BIN		 = $(BUILDDIR)/bootrom.bin
+BOOTROM_PARTS		 = $(BUILDDIR)/bootrom0.bin \
+			   $(BUILDDIR)/bootrom1.bin \
+			   $(BUILDDIR)/bootrom2.bin \
+			   $(BUILDDIR)/bootrom3.bin
 
 ROM_APP_SRCS		 = rom_app.S utils.S
 ROM_APP_ELF		 = $(BUILDDIR)/rom_app.elf
 ROM_APP_SREC		 = $(BUILDDIR)/rom_app.s19
 
+FLASHER_SRCS		 = flasher.S utils.S
+FLASHER_SREC		 = $(BUILDDIR)/flasher.s19
+
+TEST_SRCS		 = test.S utils.S
+TEST_SREC		 = $(BUILDDIR)/test.s19
+
 
 .PHONY: all
-all: $(LOADER_PARTS) $(LOADER_SREC) $(FLASHER_SREC) $(ROM_APP_SREC)
+.INTERMEDIATE: $(BOOTROM_BIN) $(BOOTROM_ELF) $(ROM_APP_ELF)
+all: $(BOOTROM_PARTS) $(BOOTROM_SREC) $(FLASHER_SREC) $(ROM_APP_SREC) $(TEST_SREC)
 
-$(LOADER_PARTS): $(LOADER_BIN)
-	$(OBJCOPY) -I binary --byte=0 --interleave=4 --interleave-width=1 $(LOADER_BIN) $(BUILDDIR)/byte0.bin
-	$(OBJCOPY) -I binary --byte=1 --interleave=4 --interleave-width=1 $(LOADER_BIN) $(BUILDDIR)/byte1.bin
-	$(OBJCOPY) -I binary --byte=2 --interleave=4 --interleave-width=1 $(LOADER_BIN) $(BUILDDIR)/byte2.bin
-	$(OBJCOPY) -I binary --byte=3 --interleave=4 --interleave-width=1 $(LOADER_BIN) $(BUILDDIR)/byte3.bin
+$(BUILDDIR)/%.s19: $(BUILDDIR)/%.elf
+	$(OBJCOPY) -O srec --srec-forceS3 $< $@
 
-$(LOADER_SREC): $(LOADER_ELF)
-	$(OBJCOPY) -O srec --srec-forceS3 $(LOADER_ELF) $@
+$(BUILDDIR)/%.bin: $(BUILDDIR)/%.elf
+	$(OBJCOPY) -O binary $< $@
 
-$(LOADER_BIN): $(LOADER_ELF)
-	$(OBJCOPY) -O binary $(LOADER_ELF) $@
+$(BOOTROM_PARTS): $(BOOTROM_BIN)
+	$(OBJCOPY) -I binary --byte=0 --interleave=4 --interleave-width=1 $< $(BUILDDIR)/bootrom0.bin
+	$(OBJCOPY) -I binary --byte=1 --interleave=4 --interleave-width=1 $< $(BUILDDIR)/bootrom1.bin
+	$(OBJCOPY) -I binary --byte=2 --interleave=4 --interleave-width=1 $< $(BUILDDIR)/bootrom2.bin
+	$(OBJCOPY) -I binary --byte=3 --interleave=4 --interleave-width=1 $< $(BUILDDIR)/bootrom3.bin
 
-$(LOADER_ELF): $(LOADER_SRCS) $(INCLUDES)
+$(BOOTROM_ELF): $(BOOTROM_SRCS) $(INCLUDES)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ -Wl,-Ttext=0 $(LOADER_SRCS)
+	$(CC) $(CFLAGS) -o $@ -Wl,-Ttext=0 $(BOOTROM_SRCS)
+
+$(ROM_APP_ELF): $(ROM_APP_SRCS) $(INCLUDES)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ -Wl,-Ttext=0x00004000 $(ROM_APP_SRCS)
 
 $(FLASHER_SREC): $(FLASHER_SRCS) $(INCLUDES)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ -Wl,--oformat,srec -Wl,-Ttext=0x01000000 $(FLASHER_SRCS)
 
-$(ROM_APP_SREC): $(ROM_APP_ELF)
-	$(OBJCOPY) -O srec --srec-forceS3 $(ROM_APP_ELF) $@
-
-$(ROM_APP_ELF): $(ROM_APP_SRCS) $(INCLUDES)
+$(TEST_SREC): $(TEST_SRCS) $(INCLUDES)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ -Wl,-Ttext=0x00004000 $(ROM_APP_SRCS)
+	$(CC) $(CFLAGS) -o $@ -Wl,--oformat,srec -Wl,-Ttext=0x01000000 $(TEST_SRCS)
 
 .PHONY: clean
 clean:
