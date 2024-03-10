@@ -38,7 +38,7 @@ start:
     bsr     uart_init
     mputs   msg_start
 
-    clr.l   %d0                 // caches off
+    move.l  #0x8000,%d0         // instruction cache on
     movec   %d0,%cacr
 
     // flash programming workflow
@@ -58,18 +58,20 @@ check_flash_id:
     move.l  #UNLOCK_CODE_1,UNLOCK_ADDR_1
     move.l  #UNLOCK_CODE_2,UNLOCK_ADDR_2
     move.l  #CMD_ID,CMD_ADDR    // switch flash to software ID mode
-
-    move.l  0x0,%d0             // read vendor code
-    cmp.l   #VENDOR_SST,%d0
-    beq     1f
-    fatal32 %d0,err_vendor
-1:
-    move.l  0x4,%d0             // read device code
-    cmp.l   #DEVICE_39F040,%d0
-    beq     2f
-    fatal32 %d0,err_device
-2:
+    nop                         // wait out software ID access time
+    nop                         // ... two for good measure
+    move.l  0x0,%d1             // read vendor code
+    move.l  0x4,%d2             // read device code
     move.l  #CMD_ID_EXIT,CMD_ADDR   // return to normal mode
+
+    cmp.l   #VENDOR_SST,%d1
+    beq     1f
+    fatal32 %d1,err_vendor
+1:
+    cmp.l   #DEVICE_39F040,%d2
+    beq     2f
+    fatal32 %d2,err_device
+2:
     rts
 
 //
