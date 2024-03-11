@@ -45,8 +45,7 @@ start:
     bsr     program_flash       // write upload to flash
 
     mputs   msg_reset           // XXX check CPLD revision for reset-capability
-1:
-    bra     1b
+    stop    #0x2700
 
 //
 // Check the flash vendor / device ID.
@@ -94,6 +93,8 @@ get_srecords:
     mputs   msg_srec            // ready for S-records
 srec_loop:
     bsr     getc                // wait for start of record
+    cmp.b   #'Z',%d0
+    beq     erase_all_flash
     cmp.b   #'S',%d0
     bne     srec_loop
 
@@ -226,6 +227,41 @@ srec_bad_addr:
     fatal32 %d0,err_srec_addr
 
 //
+// Erase the entire app portion of the flash, if nothing has been uploaded.
+//
+erase_all_flash:
+    cmp.l   #0,%a5              // still initial value?
+    bne     srec_loop           // ... no
+    cmp.l   #FLASH_SIZE,%a4     // still initial value?
+    bne     srec_loop           // .. no
+
+    lea     SECTOR_SIZE,%a4     // erase from the beginning
+    lea     FLASH_SIZE,%a5      // ... to the end
+    mputs   msg_erase_all
+    bsr     erase_flash1
+
+    mputs   msg_verify
+    move.l  %a4,%a1             // verify the entire ROM is erased
+1:
+    move.l  %a1@,%d2
+    cmp.l   #BLANK,%d2
+    beq     2f
+    move.l  %a1,%d0
+    bsr     putx32
+    mputs   msg_equal
+    move.l  %d2,%d0
+    bsr     putx32
+    mputs   msg_newline
+2:
+    addq.l  #4,%a1
+    cmpa.l  %a5,%a1
+    bne     1b
+
+    mputs   msg_done
+    mputs   msg_reset
+    stop    #0x2700
+
+//
 // Erase flash range that will be programmed.
 //
 //  d0-d1/a0 - scratch
@@ -236,7 +272,7 @@ srec_bad_addr:
 //
 erase_flash:
     mputs   msg_erase
-
+erase_flash1:
     move.l  %a4,%a1             // start of program
 1:
     move.l  #UNLOCK_CODE_1,UNLOCK_ADDR_1
@@ -310,12 +346,15 @@ program_flash:
 
 
 msg_start:      .asciz "\r\nIP940 ROM flash tool rel 1\r\n"
-msg_srec:       .asciz "Ready for S-records..."
+msg_srec:       .asciz "Ready for S-records, or 'Z' to erase flash..."
 msg_erase:      .asciz "Erasing sectors..."
+msg_erase_all:  .asciz "\r\nErasing entire program area..."
 msg_program:    .asciz "Writing..."
 msg_verify:     .asciz "Verifying..."
 msg_done:       .asciz "done\r\n"
-msg_reset:      .asciz "Reset to run uploaded program.\r\n"
+msg_reset:      .asciz "Reset now.\r\n"
+msg_equal:      .asciz " = "
+msg_newline:    .asciz "\r\n"
 srec_progress:  .asciz "."
 err_vendor:     .asciz " flash vendor not supported"
 err_device:     .asciz " flash device not supported"

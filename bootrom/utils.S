@@ -130,7 +130,9 @@ fatal:
 // fatal error handler with 8-bit parameter, message in a1, parameter in d0
 fatal_param8:
     lea     fatal_err,%a0
+    move.b  %d2,%d0
     bsr     puts
+    move.l  %d0,%d2
     bsr     putx8
     move.l  %a1,%a0
     bsr     puts
@@ -139,8 +141,10 @@ fatal_param8:
 
 // fatal error handler with 32-bit parameter, message in a1, parameter in d0
 fatal_param32:
+    move.l  %d0,%d2
     lea     fatal_err,%a0
     bsr     puts
+    move.l  %d2,%d0
     bsr     putx32
     move.l  %a1,%a0
     bsr     puts
