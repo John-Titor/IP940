@@ -15,21 +15,12 @@
     .org    0x0
     dc.l    DRAM_END-4          // top of RAM
     dc.l    start               // entrypoint
-    dc.l    exception           // access fault
-    dc.l    exception           // address error
-    dc.l    exception           // illegal instruction
-    dc.l    exception           // divide by zero
-    dc.l    exception           // CHK/CHK2
-    dc.l    exception           // TRAPcc/TRAPV
-    dc.l    exception           // privilege violation
-    dc.l    exception           // trace
-    dc.l    exception           // line A
-    dc.l    exception           // line F
+    .dcb.l  62,exception        // we expect no exceptions
 
 //
 // Exception handler
 //
-// We expect no exceptions, so just print the index and PC.
+// We expect no exceptions, so just print the vector number and PC.
 //
 exception:
     mputs   err_exception1
@@ -46,26 +37,15 @@ exception:
 //
 // Reset handler
 //
+// CPU has already:
+//  - Set S, IPL=7 and cleared M, T0, T1 in SR
+//  - Set VBR=0
+//  - Disabled the instruction and data caches
+//  - Disabled the MMU
+//  - Disabled the TTRs
+//
     .globl  start               // keep the linker happy
 start:
-    move.w  #0x2700,%sr         // interrupts off
-    clr.l   %d0
-    movec   %d0,%vbr            // reset VBR
-    cinva   %bc                 // clear caches
-    movec   %d0,%tc             // turn off MMU
-    pflusha                     // invalidate tlb
-    movec   %d0,%srp            // reset pagetable root pointers
-    movec   %d0,%urp
-    move.l  #0x0001c020,%d0     // DTT0, 0-0x02000000 cacheable, copy-back (RAM/ROM)
-    movec   %d0,%dtt0
-    move.l  #0x00ffc060,%d0     // DTT1, default uncachable
-    movec   %d0,%dtt1
-    move.l  #0x00ffc000,%d0     // ITT0, default cacheable, write-through
-    movec   %d0,%itt0
-    clr.l   %d0                 // disable ITT1
-    movec   %d0,%itt1
-//    move.l  #0x8000,%d0         // instruction cache on
-//    movec   %d0,%cacr
 
 //
 // Configure the DRAM controller on 8M boards.
@@ -76,15 +56,16 @@ start:
     dbf     %d0,1b
 
 //
-// Init the console
+// Init the console.
 //
     bsr     uart_init
-    mputs   signon
+    mputs   msg_signon
+    mputs   msg_newline
+    mputs   msg_prompt
 
 //
-// loop reading S-records
+// Loop reading S-records.
 //
-// register usage:
 //  d7 - accumulated checksum
 //
 srec_loop:
@@ -116,7 +97,7 @@ srec_loop:
     fatal8  %d0,err_srec_unsup
 
 //
-// boot the application in flash at 0x4000
+// Boot the application in flash at 0x4000.
 //
 boot_app:
     move.l  #APP_BASE,%a1       // base of app in flash
@@ -153,9 +134,8 @@ boot_app:
     fatal32 %d0,err_app_entry
 
 //
-// handle an S3 record
+// Handle an S3 record.
 //
-// register usage:
 //  d6 - remaining data bytes
 //  a6 - destination address for next data
 //
@@ -183,9 +163,8 @@ srec_3:
     bra     srec_loop           // ... go get another record
 
 //
-// handle an S7 record
+// Handle an S7 record.
 //
-// register usage:
 //  a6 - entrypoint
 //
 srec_7:
@@ -208,19 +187,19 @@ srec_7:
     jmp     %a6@                // ... and call the entrypoint
 
 //
-// S-record length not sensible
+// S-record length not sensible.
 //
 srec_bad_len:
     fatal32 %d0,err_srec_len
 
 //
-// S-record address not sensible
+// S-record address not sensible.
 //
 srec_bad_addr:
     fatal32 %d0,err_srec_addr
 
 //
-// handle the end-of-line checksum
+// Validate the end-of-line checksum.
 //
 srec_check_sum:
     bsr     getb                // get sum
@@ -230,7 +209,9 @@ srec_check_sum:
 1:
     fatal8  %d7,err_srec_sum
 
-signon:         .asciz "\r\n\r\nIP940 bootstrap rel 2\r\n 'X' to execute code at 0x4000 or send S-records..."
+msg_signon:     .asciz "\r\n\r\nIP940 bootstrap rel 2\r\n"
+msg_cpld:       .asciz "CPLD rev "
+msg_prompt:     .asciz "'X' to execute code at 0x4000 or send S-records..."
 msg_newline:    .asciz "\r\n"
 err_exception1: .asciz "Unhandled exception "
 err_exception2: .asciz " @ "

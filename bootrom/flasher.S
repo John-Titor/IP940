@@ -38,9 +38,6 @@ start:
     bsr     uart_init
     mputs   msg_start
 
-    move.l  #0x8000,%d0         // instruction cache on
-    movec   %d0,%cacr
-
     // flash programming workflow
     bsr     check_flash_id      // verify suitable flash ROMs installed
     bsr     get_srecords        // accepts upload, buffer end pointer in a5
@@ -52,7 +49,7 @@ start:
     bra     1b
 
 //
-// check the flash vendor / device ID
+// Check the flash vendor / device ID.
 //
 check_flash_id:
     move.l  #UNLOCK_CODE_1,UNLOCK_ADDR_1
@@ -111,7 +108,8 @@ srec_loop:
     fatal8  %d0 err_srec_unsup  // not something we expect
 
 //
-// handle an S3 record
+// Handle an S3 record.
+//
 //  d0-d1/a0 - scratch
 //  d5 - buffer offset
 //  d6 - remaining data byte count
@@ -159,7 +157,8 @@ srec_3:
     bra     srec_loop           // ... go get another record
 
 //
-// handle an S7 record - end of upload
+// Handle an S7 record - end of upload.
+//
 //  d0-d1/a0-a1 - scratch
 //  a4 - lowest program address
 //  a5 - highest program address
@@ -204,7 +203,7 @@ srec_7:
     rts
 
 //
-// handle the end-of-line checksum
+// Validate the end-of-line checksum.
 //
 srec_check_sum:
     bsr     getb                // get sum
@@ -215,19 +214,20 @@ srec_check_sum:
     fatal8  %d7 err_srec_sum
 
 //
-// S-record length not sensible
+// S-record length not sensible.
 //
 srec_bad_len:
     fatal8  %d0,err_srec_len
 
 //
-// S-record address not sensible
+// S-record address not sensible.
 //
 srec_bad_addr:
     fatal32 %d0,err_srec_addr
 
 //
-// erase flash that will be programmed
+// Erase flash range that will be programmed.
+//
 //  d0-d1/a0 - scratch
 //  d2,d3 - timeout counters
 //  a1 - sector address
@@ -241,7 +241,7 @@ erase_flash:
 1:
     move.l  #UNLOCK_CODE_1,UNLOCK_ADDR_1
     move.l  #UNLOCK_CODE_2,UNLOCK_ADDR_2
-    move.l  #CMD_ERASE,CMD_ADDR  // generic erase command
+    move.l  #CMD_ERASE,CMD_ADDR // generic erase command
     move.l  #UNLOCK_CODE_1,UNLOCK_ADDR_1
     move.l  #UNLOCK_CODE_2,UNLOCK_ADDR_2
     move.l  #CMD_SECTOR,%a1@    // sector erase subcommand and sector address
@@ -266,7 +266,7 @@ erase_flash:
     rts
 
 //
-// program / verify flash
+// Program / verify flash.
 //
 //  d0-d1/a0 - scratch
 //  d2 - data word
@@ -298,7 +298,7 @@ program_flash:
     beq     3f                  // ... yes, done with this word
     dbf     %d3, 2b             // ... no, keep polling
 
-    fatal32 %a1,err_program     // program timed out
+    fatal32 %a1,err_program     // program timed out / verify failed
 3:
     subq.l  #4,%a1              // decrement source
     subq.l  #4,%a2              // and destination

@@ -37,7 +37,7 @@ class Target:
                 f"=> {int(self.best_rate)}  error {int(self.best_error)} / {self.best_error / self.rate * 100:.2f})%")
 
 
-targets = [Target(115200), Target(230400), Target(1000000)]
+targets = [Target(115200), Target(230400), Target(921600)]
 
 for sc in sc_range:
     print(f"sc = {sc}...")

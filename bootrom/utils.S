@@ -22,6 +22,8 @@ uart_init:
     rts
 
 // get a character from the UART, return in d0.b
+// XXX todo - ~100k iterations is a couple seconds with the
+//            caches off, might be nice to support a timeout
 getc:
     btst.b  #0,QUART_LSR
     beq     getc
