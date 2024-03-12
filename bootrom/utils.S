@@ -30,6 +30,21 @@ getc:
     move.b  QUART_RHR,%d0
     rts
 
+// get a character from the UART, return in d0.b
+// times out after a couple of seconds and returns 0
+getc_timeout:
+    move.l  #100000,%d0
+1:
+    subq.l  #1,%d0
+    btst.b  #0,QUART_LSR
+    bne     2f
+    cmp.l   #0,%d0
+    bne     1b
+    rts
+2:
+    move.b  QUART_RHR,%d0
+    rts
+
 // write the character in d0.b to the UART
 putc:
     btst.b  #5,QUART_LSR
@@ -124,8 +139,7 @@ fatal:
     bsr     puts
     move.l  %a1,%a0
     bsr     puts
-1:
-    bra     1b
+    bra     stop
 
 // fatal error handler with 8-bit parameter, message in a1, parameter in d0
 fatal_param8:
@@ -136,8 +150,7 @@ fatal_param8:
     bsr     putx8
     move.l  %a1,%a0
     bsr     puts
-1:
-    bra     1b
+    bra     stop
 
 // fatal error handler with 32-bit parameter, message in a1, parameter in d0
 fatal_param32:
@@ -148,8 +161,12 @@ fatal_param32:
     bsr     putx32
     move.l  %a1,%a0
     bsr     puts
-1:
-    bra     1b
+    bra     stop
+
+// stop forever
+stop:
+    stop    #0x2700
+    bra     stop
 
 hex_char_err:   .asciz " invalid hex character"
 fatal_err:      .asciz "\r\nFATAL: "

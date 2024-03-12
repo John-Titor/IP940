@@ -45,7 +45,7 @@ start:
     bsr     program_flash       // write upload to flash
 
     mputs   msg_reset           // XXX check CPLD revision for reset-capability
-    stop    #0x2700
+    bra     stop
 
 //
 // Check the flash vendor / device ID.
@@ -259,7 +259,7 @@ erase_all_flash:
 
     mputs   msg_done
     mputs   msg_reset
-    stop    #0x2700
+    bra     stop
 
 //
 // Erase flash range that will be programmed.

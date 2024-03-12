@@ -31,8 +31,7 @@ exception:
     move.l  %sp@(2),%d0
     bsr     putx32
     mputs   msg_newline
-1:
-    bra     1b
+    bra     stop
 
 //
 // Reset handler
@@ -43,6 +42,7 @@ exception:
 //  - Disabled the instruction and data caches
 //  - Disabled the MMU
 //  - Disabled the TTRs
+//  - Set SP to the top of RAM
 //
     .globl  start               // keep the linker happy
 start:
@@ -64,16 +64,22 @@ start:
     mputs   msg_prompt
 
 //
-// Loop reading S-records.
+// Wait for a character or timeout.
+//
+    bsr     getc_timeout
+    tst.b   %d0
+    beq     boot_app            // timed out, boot app
+    mputs   msg_srecords
+    bra     srec_loop1          // got a character, go process it
+
+//
+// Loop waiting for a character from the console.
 //
 //  d7 - accumulated checksum
 //
 srec_loop:
     bsr     getc                // wait for character
-    cmp.b   #'X',%d0            // 'X' to execute code at 0x4000
-    beq     boot_app
-    cmp.b   #'x',%d0            // 'x' to execute code at 0x4000
-    beq     boot_app
+srec_loop1:
     cmp.b   #'S',%d0            // 'S' for an S-record
     bne     srec_loop
 
@@ -211,7 +217,8 @@ srec_check_sum:
 
 msg_signon:     .asciz "\r\n\r\nIP940 bootstrap rel 2\r\n"
 msg_cpld:       .asciz "CPLD rev "
-msg_prompt:     .asciz "'X' to execute code at 0x4000 or send S-records..."
+msg_prompt:     .asciz "  Hit any key to cancel autoboot..."
+msg_srecords:   .asciz "\r\n  Send S-records..."
 msg_newline:    .asciz "\r\n"
 err_exception1: .asciz "Unhandled exception "
 err_exception2: .asciz " @ "

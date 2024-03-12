@@ -44,6 +44,7 @@
 // functions in utils.S
     .globl  uart_init
     .globl  getc
+    .globl  getc_timeout
     .globl  putc
     .globl  getb
     .globl  get_addr
@@ -54,6 +55,7 @@
     .globl  fatal
     .globl  fatal_param32
     .globl  fatal_param8
+    .globl  stop
 
 // emit a string, trashes a0
 .macro mputs str
