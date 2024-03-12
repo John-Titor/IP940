@@ -36,16 +36,24 @@ exception:
 //
 // Reset handler
 //
-// CPU has already:
-//  - Set S, IPL=7 and cleared M, T0, T1 in SR
-//  - Set VBR=0
-//  - Disabled the instruction and data caches
-//  - Disabled the MMU
-//  - Disabled the TTRs
-//  - Set SP to the top of RAM
+// Emulate a complete reset here; this should not be necessary
+// per the 040 spec, but experimentation suggests that some parts 
+// are required.
 //
     .globl  start               // keep the linker happy
 start:
+    move.w  #0x2700,%sr         // interrupts off
+    clr.l   %d0
+    movec   %d0,%vbr            // reset VBR
+    cinva   %bc                 // clear caches
+    movec   %d0,%tc             // turn off MMU
+    pflusha                     // invalidate tlb
+    movec   %d0,%srp            // reset pagetable root pointers
+    movec   %d0,%urp
+    movec   %d0,%dtt0           // reset transparent translation registers
+    movec   %d0,%dtt1
+    movec   %d0,%itt0
+    movec   %d0,%itt1
 
 //
 // Configure the DRAM controller on 8M boards.
@@ -188,7 +196,6 @@ srec_7:
     move.l  %d0,%a6
     bsr     srec_check_sum      // get the checksum byte and verify
     mputs   srec_go
-
     cpusha  %bc                 // clean/invalidate caches to ensure coherency
     jmp     %a6@                // ... and call the entrypoint
 

@@ -33,7 +33,7 @@ getc:
 // get a character from the UART, return in d0.b
 // times out after a couple of seconds and returns 0
 getc_timeout:
-    move.l  #100000,%d0
+    move.l  #1000000,%d0
 1:
     subq.l  #1,%d0
     btst.b  #0,QUART_LSR
