@@ -222,7 +222,7 @@ srec_check_sum:
 1:
     fatal8  %d7,err_srec_sum
 
-msg_signon:     .asciz "\r\n\r\nIP940 bootstrap rel 2\r\n"
+msg_signon:     .asciz "\r\n\r\nIP940 bootstrap rel 3\r\n"
 msg_cpld:       .asciz "CPLD rev "
 msg_prompt:     .asciz "  Hit any key to cancel autoboot..."
 msg_srecords:   .asciz "\r\n  Send S-records..."
