@@ -35,22 +35,24 @@ ROMs, allowing in-system programming of the ROMs. This is not possible with the
 `02` boards, which lack the bidirectional data buffers as well as the write
 enable.
 
+## Open-source motherboard
+
+An open-source motherboard for IP940 is in development. More details can be found at
+https://www.retrobrewcomputers.org/doku.php?id=builderpages:plasmo:68040:ip940:ip940base.
+
 ## LEDs
 
-The four LEDs are marked on the VME motherboard's front panel as (left to right).
+The four LEDs are marked on the VME motherboard's front panel as (left to 
+right):
 
-`040BUS`  `TIP`  `HALT`  `RESET`
-
-The `040BUS` LED is driven by a signal that is always low when the 040 is
-running, and so will always be lit during normal operation. The `TIP` LED is
-driven by the
-'040 signal of the same name and indicates the processor is accessing the bus.
-
-The `HALT` LED is driven by P3B.2 from the motherboard; pulling the pin low will
-turn the LED on.
-
-The `RESET` LED is lit when the `#RESET` signal is asserted, either by pressing
-the reset pushbutton, or pulling P3D.13 low.
+ - `040BUS` driven by a signal that is always low when the 040 is running,
+   always lit during normal operation.
+ - `TIP` driven by the '040 signal of the same name, indicates the processor
+   is accessing the bus.
+ - `HALT` driven by P3B.2 from the motherboard; pulling the pin low will turn
+   the LED on.
+ - `RESET` lit when the `#RESET` signal is asserted, either by pressing the
+   reset pushbutton, or pulling P3D.13 low.
 
 ## Jumper settings
 
@@ -59,22 +61,16 @@ the reset pushbutton, or pulling P3D.13 low.
 position | connection | notes
 :-------:|:----------:|-------
 1-2      | `A21`
-2-3      | `VCC`
-2-4      | `A20`      | only on `P0`/`R1` boards
-
-Default for 27CF040: 2-3
-Setting for 39SF040: 2-4
+2-3      | `VCC`      | default for 27CF040
+2-4      | `A20`      | for 39SF040, only on `P0`/`R1` boards
 
 ### W2 - ROM pin 31 select
 
 position | connection | notes
 :-------:|:----------:|-------
 1-2      | `A20`
-2-3      | `VCC`
-2-4      | `R/#W`     | only on `P0`/`R1` boards
-
-Default for 27CF040: 1-2
-Setting for 39SF040: 2-3 for read-only, 2-4 for writable
+2-3      | `VCC`      | default for 27CF040
+2-4      | `R/#W`     | for 39SF040, only on `P0`/`R1` boards
 
 ### W3 - unknown
 
@@ -125,31 +121,12 @@ correlates with dissambly of the startup code.
 ```
 
 ### Expansion connector chip selects
-
-`#BUSCE0`   0x008x_xxxx             900ns
-`#BUSCE0`   0x00cx_xxxx             1000ns
-`#BUSCE0`   0x02xx_xxxx             420ns
-`#BUSCE1`   ???
-`#BUSCE2`   ???
-
-### On VME motherboard, historical interest only
-
-There is conflicting evidence in the code for the actual image memory address;
-the image memory size check looks at 0x02b8_0000, but the image memory test
-code assumes memory at 0x00b0_0000.
-
 ```
-   IMAGE: 0?B0 0000..02BF FFFF      (may only be 512K)
-940 REGS: 0200 0000..0200 000C      (in msbyte of lword)
-   QUART: 0210 0000..021F FFFF      (in lsbyte of lword)
-   BBRAM: 0220 0000..0220 7FC0      (in lsbyte of lword)
-   CLOCK: 0220 7FC4..0220 7FFF      (in lsbyte of lword)
-VME 6000: 0240 0000..0240 0023      (in lsbyte of word)
-     ADC: 0260 0000..026F FFFF      (every 8th byte)
-VSC REGS: 0280 0000..028F FFFF
-   VME16: 4000 0000..4000 FFFF
-   VME24: 4100 0000..41FF FFFF
-   VME32: 8000 0000..FFFF FFFF
+ #BUSCE0:   0x008x_xxxx
+ #BUSCE0:   0x00cx_xxxx
+ #BUSCE0:   0x02xx_xxxx
+ #BUSCE1:   ???
+ #BUSCE2:   ???
 ```
 
 ### DRAM controller (MEMC)
