@@ -1,28 +1,31 @@
 #!python3
 #
-# Brute-force bitrate searcher for OX16C954
+# Bitrate calculator for OX16C954
 #
-xtal = 33000000
-max_error = 0.05
+#                        CLOCK
+# bitrate =  ----------------------------------
+#            oversampling * divisor * prescaler
+#
+# oversampling is 4-16
+# divisor is 1-65535
+# prescaler is 5.3 fixed point, range 1 - 31.875
+#
 
-sc_range = range(16, 17)
-prescaler_range = range(8, 256)
-#prescaler_range = range(32, 33)
+# For IP940
+CLOCK = 33333333
+OVERSAMPLE = 16
+PRE_FRAC = 8
+
 
 class Target:
     def __init__(self, rate):
         self.rate = rate
-        self.max_error = rate * max_error
         self.best_error = rate
-        self.best_rate = 0
-        self.sc = 0
-        self.divisor = 0
-        self.prescaler = 0
 
     def consider(self, sc, divisor, prescaler):
-        actual_rate = xtal / (sc * divisor * (prescaler / 8))
+        actual_rate = (CLOCK * PRE_FRAC) // (sc * divisor * prescaler)
         error = abs(self.rate - actual_rate)
-        if (error < self.max_error) and (error < self.best_error):
+        if error < self.best_error:
             self.best_error = error
             self.best_rate = actual_rate
             self.sc = sc
@@ -32,19 +35,34 @@ class Target:
     def __str__(self):
         if self.best_error == self.rate:
             return f"{self.rate}: not available"
-        return (f"{self.rate}: "
+        return (f"{self.rate:10d}: "
                 f"sc {self.sc}  divisor {self.divisor >> 8},{self.divisor % 256}  prescaler {self.prescaler} "
-                f"=> {int(self.best_rate)}  error {int(self.best_error)} / {self.best_error / self.rate * 100:.2f})%")
+                f"=> {self.best_rate}  error {self.best_error} / {self.best_error / self.rate * 100:.2f}%")
 
 
-targets = [Target(115200), Target(230400), Target(921600)]
+def integer_sqrt(n):
+    x = n // 2
+    while True:
+        prev_x = x
+        x = (x + n // x) // 2
+        if abs(x - prev_x) <= 1:
+            return (x - 1) if (x * x) > n else x
 
-for sc in sc_range:
-    print(f"sc = {sc}...")
-    for prescaler in prescaler_range:
-        for divisor in range(1, 65536):
-            for target in targets:
-                target.consider(sc, divisor, prescaler)
 
-for target in targets:
+def guess(target):
+    n = (CLOCK * PRE_FRAC) // (target.rate * OVERSAMPLE)
+    lf = integer_sqrt(n)
+    while lf > 0:
+        hf = n // lf
+        if (lf >= 8) and (lf < 256):
+            target.consider(OVERSAMPLE, hf, lf)
+            target.consider(OVERSAMPLE, hf + 1, lf)
+        elif (hf >= 8) and (hf < 256):
+            target.consider(OVERSAMPLE, lf, hf)
+            target.consider(OVERSAMPLE, lf, hf + 1)
+        lf -= 1
+
+
+for target in [Target(9600), Target(115200), Target(2062500)]:
+    guess(target)
     print(target)
