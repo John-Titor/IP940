@@ -15,14 +15,11 @@ disassembled and the hardware reverse-engineered.
 
 ## Basic features
 
- - 25MHz or 33MHz 68040
+ - 33MHz 68040
  - 8MiB DRAM with KS84C31 or 12MiB DRAM with CPLD DRAM controller
  - 4x32-pin ROM sockets fitted with 27C040 EPROMs
  - 4x LEDs
  - 4x32-pin connector using standard .025" square pins with 0.1" spacing
-
-Note that the memory map only calls out 8MiB of DRAM, as the firmware is shared
-across the various board configurations.
 
 Three revisions of the board have been seen:
 
@@ -131,8 +128,8 @@ correlates with dissambly of the startup code.
 
 ### DRAM controller (MEMC)
 
-This section applies only to `REV 02` boards with the KS84C31 DRAM controller;
-boards with the CPLD controller have a serial EEPROM connected to the CPLD that
+This section applies only to `REV 02` boards with the KS84C31 DRAM controller.
+Boards with the CPLD controller have a serial EEPROM connected to the CPLD that
 likely provides configuration information.
 
 Startup code reads from 0x041b_d190 before touching memory and then pauses,
@@ -175,8 +172,8 @@ BBRRRRRRRRRRCCCCCCCCCCSS
 There is no interrupt decoding on the board; `IPL0/1/2` are routed directly to
 the connector.
 
-`#AVEC` is generated onboard by U24. The original firmware does not use
-vectored interrupts.
+`#AVEC` is generated onboard by U24 for all interrupt acknowledge cycles. The
+board does not support vectored interrupts.
 
 ## Bus connector
 
