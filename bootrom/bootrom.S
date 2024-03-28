@@ -37,7 +37,7 @@ exception:
 // Reset handler
 //
 // Emulate a complete reset here; this should not be necessary
-// per the 040 spec, but experimentation suggests that some parts 
+// per the 040 spec, but experimentation suggests that some parts
 // are required.
 //
     .globl  start               // keep the linker happy
@@ -115,26 +115,26 @@ srec_loop1:
 //
 boot_app:
     move.l  #APP_BASE,%a1       // base of app in flash
-    move.l  %a1@,%d0            // app stack pointer
-    cmp.l   #DRAM_BASE,%d0      // range-check against DRAM
+    move.l  %a1@,%d6            // app stack pointer
+    cmp.l   #DRAM_BASE,%d6      // range-check against DRAM
     blt     2f
-    cmp.l   #DRAM_END,%d0
+    cmp.l   #DRAM_END,%d6
     bgt     2f
-    move.l  %d0,%d6             // ... save for later
+
+    move.l  %a1@(4),%d5         // app entrypoint
+    cmp.l   #APP_BASE,%d5       // range-check against app space
+    blt     3f
+    cmp.l   #APP_END,%d5
+    bge     3f
+    btst    #0,%d5              // instructions must be 2-aligned
+    bne     3f
 
     mputs   app_go1
+    move.l  %d6,%d0
     bsr     putx32
 
-    move.l  %a1@(4),%d0         // app entrypoint
-    cmp.l   #APP_BASE,%d0       // range-check against app space
-    blt     3f
-    cmp.l   #APP_END,%d0
-    bge     3f
-    move.l  %d0,%d5             // ... save for later
-
-    btst    #0,%d0              // instructions must be 2-aligned
-    bne     3f
     mputs   app_go2
+    move.l  %d5,%d0
     bsr     putx32
     mputs   msg_newline
 

@@ -15,10 +15,10 @@ uart_init:
     move.b  #0x50,QUART_EFR     // enable 950 mode, auto RTS
     move.b  #0x80,QUART_LCR     // enable divisor latch
     move.b  #0,QUART_DLM
-    move.b  #13,QUART_DLL       // divisor /13 -> 115200
+    move.b  #5,QUART_DLL        // divisor / 5
     move.b  #0x03,QUART_LCR     // clear divisor latch, set n81
     move.b  #1,QUART_SPR        // select CPR
-    move.b  #11,QUART_ICR       // prescale 1.375
+    move.b  #29,QUART_ICR       // prescale 3.625
     rts
 
 // get a character from the UART, return in d0.b
@@ -51,6 +51,17 @@ putc:
     beq     putc
     move.b  %d0,QUART_THR
     rts
+
+// print the 0-terminated string in a0
+puts:
+    tst.b   %a0@
+    bne     1f
+    rts
+1:
+    btst.b  #5,QUART_LSR
+    beq     1b
+    move.b  %a0@+,QUART_THR
+    bra     puts
 
 // get an address as eight hex digits, returns in d0, trashes d1
 get_addr:
@@ -94,16 +105,6 @@ getx:
 2:
     lea     hex_char_err,%a1
     bra     fatal_param8
-
-// print the 0-terminated string in a0
-puts:
-    tst.b   %a0@
-    bne     1f
-    rts
-1:
-    move.b  %a0@+,%d0
-    bsr     putc
-    bra     puts
 
 // print hex number in d0, trashes d1
 putx32:

@@ -13,26 +13,20 @@ start:
     mputs   msg_start
     move.l  #vectors,%d0
     movec   %d0,%vbr
-    movec   %vbr,%d0
 
-    tst.b   TIMER_START
-    tst.b   CPLD_REV_REG
-    mputs   msg_timer
-    move.w  #0x2000,%sr
+    move.l  #0x018000000,%d0
+    bsr     putx32
+
     bra     .
 
 exception:
-    move.w  #0x2700,%sr
     mputs   msg_except
     move.w  %sp@(6),%d0         // format/vector code
     ror.w   #2,%d0              // index -> vector #
     bsr     putx8
-    tst.b   TIMER_STOP
-    rte
+    bra     .
 
 msg_start:      .asciz "\r\ntest...\r\n"
-msg_timer:      .asciz "timer started\r\n"
-msg_stop:       .asciz "\r\ndone."
 msg_except:     .asciz "\r\nexception "
 msg_newline:    .asciz "\r\n"
 
