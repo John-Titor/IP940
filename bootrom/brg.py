@@ -13,8 +13,32 @@
 
 # For IP940
 CLOCK = 33333333
-OVERSAMPLE = 16
 PRE_FRAC = 8
+
+rate_list = [
+    921600,
+    460800,
+    230400,
+    115200,
+    153600,
+    78600,
+    57600,
+    38400,
+    19200,
+    9600,
+    4800,
+    3600,
+    2400,
+    2000,
+    1800,
+    1200,
+    600,
+    300,
+]
+
+oversample_list = [
+    16
+]
 
 
 class Target:
@@ -35,9 +59,10 @@ class Target:
     def __str__(self):
         if self.best_error == self.rate:
             return f"{self.rate}: not available"
-        return (f"{self.rate:10d}: "
-                f"sc {self.sc}  divisor {self.divisor >> 8},{self.divisor % 256}  prescaler {self.prescaler} "
-                f"=> {self.best_rate}  error {self.best_error} / {self.best_error / self.rate * 100:.2f}%")
+#        return (f"{self.rate:10d}: "
+#                f"TCR {self.sc % 16:#04x}  DLx {self.divisor >> 8:#04x},{self.divisor % 256:#04x} CPR {self.prescaler:#04x} "
+#                f"=> {self.best_rate}  error {self.best_error} / {self.best_error / self.rate * 100:.2f}%")
+        return (f"B{self.rate}, {self.prescaler:#04x}, {self.divisor >> 8:#04x}, {self.divisor & 0xff:#04x}, {self.sc & 0xf:#04x}")
 
 
 def integer_sqrt(n):
@@ -50,19 +75,21 @@ def integer_sqrt(n):
 
 
 def guess(target):
-    n = (CLOCK * PRE_FRAC) // (target.rate * OVERSAMPLE)
-    lf = integer_sqrt(n)
-    while lf > 0:
-        hf = n // lf
-        if (lf >= 8) and (lf < 256):
-            target.consider(OVERSAMPLE, hf, lf)
-            target.consider(OVERSAMPLE, hf + 1, lf)
-        elif (hf >= 8) and (hf < 256):
-            target.consider(OVERSAMPLE, lf, hf)
-            target.consider(OVERSAMPLE, lf, hf + 1)
-        lf -= 1
+    for oversample in oversample_list:
+        n = (CLOCK * PRE_FRAC) // (target.rate * oversample)
+        lf = integer_sqrt(n)
+        while lf > 0:
+            hf = n // lf
+            if (lf >= 8) and (lf < 256):
+                target.consider(oversample, hf, lf)
+                target.consider(oversample, hf + 1, lf)
+            elif (hf >= 8) and (hf < 256):
+                target.consider(oversample, lf, hf)
+                target.consider(oversample, lf, hf + 1)
+            lf -= 1
 
 
-for target in [Target(9600), Target(115200), Target(2062500)]:
+for rate in rate_list:
+    target = Target(rate)
     guess(target)
     print(target)
