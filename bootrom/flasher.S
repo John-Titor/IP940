@@ -40,12 +40,13 @@ start:
 
     // flash programming workflow
     bsr     check_flash_id      // verify suitable flash ROMs installed
+1:
     bsr     get_srecords        // accepts upload, buffer end pointer in a5
     bsr     erase_flash         // erase flash as required
     bsr     program_flash       // write upload to flash
 
-    mputs   msg_reset           // XXX check CPLD revision for reset-capability
-    bra     stop
+    mputs   msg_reset
+    bra     1b
 
 //
 // Check the flash vendor / device ID.
@@ -187,10 +188,13 @@ srec_7:
     ble     2f
     fatal32 %a5,err_loader_len  // ... not
 1:
-    cmp.l   #SECTOR_SIZE,%a4    // flashing the app?
-    beq     2f                  // ... yes
+    cmp.l   #SECTOR_SIZE,%a4    // flashing an app?
+    beq     3f                  // ... yes
+    bge     2f                  // ... no, something else
     fatal32 %a4,err_flash_addr  // ... no, this is an error
 2:
+    mputs   msg_data
+3:
     move.l  %a5,%d0             // adjust highest flash address
     add.l   #3,%d0              // round up to 4B
     and.l   #0xfffffffc,%d0     // ... since flash is programed 32b-wide
@@ -346,13 +350,14 @@ program_flash:
 
 
 msg_start:      .asciz "\r\nIP940 ROM flash tool rel 1\r\n"
-msg_srec:       .asciz "Ready for S-records, or 'Z' to erase flash..."
+msg_srec:       .asciz "Send S-records, Send 'Z' to erase all non-bootloader flash..."
+msg_data:       .asciz "data upload "
 msg_erase:      .asciz "Erasing sectors..."
 msg_erase_all:  .asciz "\r\nErasing entire program area..."
 msg_program:    .asciz "Writing..."
 msg_verify:     .asciz "Verifying..."
 msg_done:       .asciz "done\r\n"
-msg_reset:      .asciz "Reset now.\r\n"
+msg_reset:      .asciz "Reset now, "
 msg_equal:      .asciz " = "
 msg_newline:    .asciz "\r\n"
 srec_progress:  .asciz "."
@@ -363,7 +368,7 @@ err_srec_sum:   .asciz " S-record checksum mismatch"
 err_srec_len:   .asciz " invalid S-record length"
 err_srec_addr:  .asciz " invalid S-record address"
 err_loader_len: .asciz " loader is too large for sector 0"
-err_flash_addr: .asciz " program must start at 0x0000 or 0x40000"
+err_flash_addr: .asciz " program must start at 0x0000 or above 0x3fff"
 err_flash_len:  .asciz " program is empty"
 err_erase:      .asciz " flash erase failed"
 err_program:    .asciz " flash program failed"
