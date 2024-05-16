@@ -56,7 +56,8 @@ start:
     movec   %d0,%itt1
 
 //
-// Configure the DRAM controller on 8M boards.
+// Configure the DRAM controller on 8M boards. We don't actually
+// know whether we're an 8M or 12M board, so do this regardless.
 //
     movel   0x41bd190,%d0       // load DRAM config
     movel   #1665,%d0           // delay loop
@@ -68,20 +69,52 @@ start:
 //
     bsr     uart_init
     mputs   msg_signon
-    mputs   msg_newline
-    mputs   msg_prompt
 
 //
-// Wait for a character or timeout.
+// Check whether the app in flash at 0x4000 is bootable, and
+// either wait out the autoboot delay or drop straight through
+// to the S-record receiver.
 //
+check_autoboot:
+    move.l  #APP_BASE,%a1       // base of app in flash
+    move.l  %a1@,%d6            // app stack pointer
+    cmp.l   #DRAM_BASE,%d6      // range-check against DRAM
+    blt     1f
+    cmp.l   #DRAM_END,%d6
+    bgt     1f
+
+    move.l  %a1@(4),%d5         // app entrypoint
+    cmp.l   #APP_BASE,%d5       // range-check against app space
+    blt     1f
+    cmp.l   #APP_END,%d5
+    bge     1f
+    btst    #0,%d5              // instructions must be 2-aligned
+    bne     1f
+
+    mputs   msg_prompt          // show autoboot prompt
     bsr     getc_timeout
     tst.b   %d0
-    beq     boot_app            // timed out, boot app
-    mputs   msg_srecords
-    bra     srec_loop1          // got a character, go process it
+    bne     2f                  // got character, skip to upload
+
+    mputs   app_go1             // print app entrypoint / stack
+    move.l  %d6,%d0
+    bsr     putx32
+    mputs   app_go2
+    move.l  %d5,%d0
+    bsr     putx32
+    mputs   msg_newline
+
+    move.l  %d6,%sp             // and go run it
+    move.l  %d5,%a2
+    jmp     %a2@
+
+1:
+    mputs   msg_no_app          // nothing to boot
+2:
+    mputs   msg_srecords        // prompt for upload
 
 //
-// Loop waiting for a character from the console.
+// Loop waiting for the start of an S-record.
 //
 //  d7 - accumulated checksum
 //
@@ -109,43 +142,6 @@ srec_loop1:
     beq     srec_loop           // ignore S6
 
     fatal8  %d0,err_srec_unsup
-
-//
-// Boot the application in flash at 0x4000.
-//
-boot_app:
-    move.l  #APP_BASE,%a1       // base of app in flash
-    move.l  %a1@,%d6            // app stack pointer
-    cmp.l   #DRAM_BASE,%d6      // range-check against DRAM
-    blt     2f
-    cmp.l   #DRAM_END,%d6
-    bgt     2f
-
-    move.l  %a1@(4),%d5         // app entrypoint
-    cmp.l   #APP_BASE,%d5       // range-check against app space
-    blt     3f
-    cmp.l   #APP_END,%d5
-    bge     3f
-    btst    #0,%d5              // instructions must be 2-aligned
-    bne     3f
-
-    mputs   app_go1
-    move.l  %d6,%d0
-    bsr     putx32
-
-    mputs   app_go2
-    move.l  %d5,%d0
-    bsr     putx32
-    mputs   msg_newline
-
-    move.l  %d6,%sp
-    move.l  %d5,%a2
-    jmp     %a2@
-
-2:
-    fatal32 %d0,err_app_stack
-3:
-    fatal32 %d0,err_app_entry
 
 //
 // Handle an S3 record.
@@ -222,17 +218,15 @@ srec_check_sum:
 1:
     fatal8  %d7,err_srec_sum
 
-msg_signon:     .asciz "\r\n\r\nIP940 bootstrap rel 3\r\n"
-msg_cpld:       .asciz "CPLD rev "
-msg_prompt:     .asciz "  Hit any key to cancel autoboot..."
-msg_srecords:   .asciz "\r\n  Send S-records..."
+msg_signon:     .asciz "\r\n\r\n** IP940 bootstrap rel 4\r\n"
+msg_prompt:     .asciz "Hit any key to cancel autoboot...\r\n"
+msg_no_app:     .asciz "No app in flash.\r\n"
+msg_srecords:   .asciz "Send S-records for DRAM upload..."
 msg_newline:    .asciz "\r\n"
 err_exception1: .asciz "Unhandled exception "
 err_exception2: .asciz " @ "
 app_go1:        .asciz "\r\nStarting app with stack "
 app_go2:        .asciz " entrypoint "
-err_app_stack:  .asciz " app stack invalid"
-err_app_entry:  .asciz " app entrypoint invalid"
 srec_progress:  .asciz "."
 srec_go:        .asciz "\r\nUpload complete, jumping to loaded code...\r\n"
 err_srec_sum:   .asciz " S-record checksum mismatch\r\n"

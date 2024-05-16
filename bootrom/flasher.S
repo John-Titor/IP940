@@ -2,7 +2,10 @@
 // Flasher for IP940 with 39SF040 flash ROMs.
 //
 // Uploaded to the bootrom, will in turn accept an S-record upload
-// and either flash the bootrom -or- the application space.
+// and either flash the bootrom -or- some part of the application space.
+//
+// Parts of the flash not covered by the uploaded S-records will not be
+// erased.
 //
 // Assumes the UART, DRAM, etc. were set up by the bootrom and does
 // not re-init them.
@@ -41,11 +44,16 @@ start:
     // flash programming workflow
     bsr     check_flash_id      // verify suitable flash ROMs installed
 1:
+    lea     FLASH_SIZE,%a4      // lowest buffer address seen
+    lea     0,%a5               // highest buffer address seen
+
     bsr     get_srecords        // accepts upload, buffer end pointer in a5
+    tst.l   %a5                 // did we get any data?
+    beq     2f                  // might have just erased
     bsr     erase_flash         // erase flash as required
     bsr     program_flash       // write upload to flash
-
     mputs   msg_reset
+2:
     bra     1b
 
 //
@@ -79,9 +87,6 @@ check_flash_id:
 // the bootrom / app boundary.
 //
 get_srecords:
-    lea     FLASH_SIZE,%a4      // lowest buffer address seen
-    lea     0,%a5               // highest buffer address seen
-
     lea     flash_buf,%a0       // zero the flash buffer
     move.l  %a0,%a1
     add.l   #FLASH_SIZE,%a1     // end of buffer
@@ -186,7 +191,7 @@ srec_7:
     bne     1f                  // ... no, perhaps app
     cmp.l   #SECTOR_SIZE,%a5    // must fit within the first sector
     ble     2f
-    fatal32 %a5,err_loader_len  // ... not
+    fatal32 %a5,err_booter_len  // ... not
 1:
     cmp.l   #SECTOR_SIZE,%a4    // flashing an app?
     beq     3f                  // ... yes
@@ -231,14 +236,9 @@ srec_bad_addr:
     fatal32 %d0,err_srec_addr
 
 //
-// Erase the entire app portion of the flash, if nothing has been uploaded.
+// Erase the entire app portion of the flash.
 //
 erase_all_flash:
-    cmp.l   #0,%a5              // still initial value?
-    bne     srec_loop           // ... no
-    cmp.l   #FLASH_SIZE,%a4     // still initial value?
-    bne     srec_loop           // .. no
-
     lea     SECTOR_SIZE,%a4     // erase from the beginning
     lea     FLASH_SIZE,%a5      // ... to the end
     mputs   msg_erase_all
@@ -262,8 +262,8 @@ erase_all_flash:
     bne     1b
 
     mputs   msg_done
-    mputs   msg_reset
-    bra     stop
+    lea     0,%a5               // reset to avoid spurious erase/program loop
+    rts
 
 //
 // Erase flash range that will be programmed.
@@ -349,15 +349,15 @@ program_flash:
     rts
 
 
-msg_start:      .asciz "\r\nIP940 ROM flash tool rel 1\r\n"
-msg_srec:       .asciz "Send S-records, Send 'Z' to erase all non-bootloader flash..."
+msg_start:      .asciz "\r\n** IP940 ROM flash tool rel 2\r\n"
+msg_srec:       .asciz "Send S-records to flash, or 'Z' to erase all non-bootloader flash..."
 msg_data:       .asciz "data upload "
 msg_erase:      .asciz "Erasing sectors..."
 msg_erase_all:  .asciz "\r\nErasing entire program area..."
 msg_program:    .asciz "Writing..."
 msg_verify:     .asciz "Verifying..."
 msg_done:       .asciz "done\r\n"
-msg_reset:      .asciz "Reset now, "
+msg_reset:      .asciz "Reset now, or "
 msg_equal:      .asciz " = "
 msg_newline:    .asciz "\r\n"
 srec_progress:  .asciz "."
@@ -367,7 +367,7 @@ err_srec_unsup: .asciz " invalid S-record type"
 err_srec_sum:   .asciz " S-record checksum mismatch"
 err_srec_len:   .asciz " invalid S-record length"
 err_srec_addr:  .asciz " invalid S-record address"
-err_loader_len: .asciz " loader is too large for sector 0"
+err_booter_len: .asciz " bootrom is too large for sector 0"
 err_flash_addr: .asciz " program must start at 0x0000 or above 0x3fff"
 err_flash_len:  .asciz " program is empty"
 err_erase:      .asciz " flash erase failed"
