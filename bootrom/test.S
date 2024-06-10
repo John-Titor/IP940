@@ -6,9 +6,9 @@
 
     .text
     .org    0x0
-    .globl  start
+    .globl  _start
 
-start:
+_start:
     bsr     uart_init
     mputs   msg_start
     move.l  #vectors,%d0

@@ -36,8 +36,8 @@
 //
     .text
     .org    0x0
-    .globl  start
-start:
+    .globl  _start
+_start:
     bsr     uart_init
     mputs   msg_start
 

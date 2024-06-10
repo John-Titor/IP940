@@ -14,7 +14,7 @@
 
     .org    0x0
     dc.l    DRAM_END-4          // top of RAM
-    dc.l    start               // entrypoint
+    dc.l    _start              // entrypoint
     .dcb.l  62,exception        // we expect no exceptions
 
 //
@@ -40,8 +40,8 @@ exception:
 // per the 040 spec, but experimentation suggests that some parts
 // are required.
 //
-    .globl  start               // keep the linker happy
-start:
+    .globl  _start              // keep the linker happy
+_start:
     move.w  #0x2700,%sr         // interrupts off
     clr.l   %d0
     movec   %d0,%vbr            // reset VBR
@@ -218,7 +218,7 @@ srec_check_sum:
 1:
     fatal8  %d7,err_srec_sum
 
-msg_signon:     .asciz "\r\n\r\n** IP940 bootstrap rel 4\r\n"
+msg_signon:     .asciz "\r\n\r\n** IP940 bootstrap rel 6\r\n"
 msg_prompt:     .asciz "Hit any key to cancel autoboot...\r\n"
 msg_no_app:     .asciz "No app in flash.\r\n"
 msg_srecords:   .asciz "Send S-records for DRAM upload..."
